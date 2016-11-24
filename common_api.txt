@@ -1,0 +1,136 @@
+*** Settings ***
+Library           Selenium2Library
+Library           Collections
+Library           RequestsLibrary
+Library           XML
+
+*** Keywords ***
+get_jsp
+    [Arguments]    ${url}=/    ${Domain}=http://test.chime.me    ${username}=langonggong@163.com    ${password}=781e5e245d69b566979b86e28d23f2c7
+    [Documentation]    发送get请求，判断是否能返回正确的jsp页面
+    ...
+    ...    Domain:域名，缺省值为http://test.chime.me
+    ...    username:登录的用户名，缺省值为langonggong@163.com
+    ...    psassword:登录密码,缺省值为781e5e245d69b566979b86e28d23f2c7
+    ...    url:访问的链接，缺省值为/
+    ...
+    ...    登陆之后才能发送请求链接
+    ...    根据返回的状态码是否为200判断该页面是否存在
+    ...
+    ...    示例
+    ...    get_jsp	evaluation
+    Create Session    api    ${Domain}    #创建session
+    ${addr}    Get Request    api    login?account=${username}&keep=true&password=${password}    #发送get请求，注意，密码为加密后的值，不是明文，可以在浏览器使用明文登录后F12->network查看发送的请求中的参数，查看密码这一项，有加密后的值
+    Should Be Equal As Strings    ${addr.status_code}    200    #判断返回的状态码是否为200
+    ${addr}    Get Request    api    ${url}    #发送get请求
+    Should Be Equal As Strings    ${addr.status_code}    200    #判断response的状态码是否为200
+    Log    ${addr.content}    #查看内容
+
+post_json
+    [Arguments]    ${url}    ${domain}=http://test.chime.me    ${account}=langonggong@163.com    ${password}=781e5e245d69b566979b86e28d23f2c7    @{params}
+    [Documentation]    发送post请求，先在domain下用账号密码登录，再对url使用params参数发送post请求
+    ...
+    ...    url：发送post请求的链接
+    ...    domain：登录的域名，缺省值为http://test.chime.me
+    ...    account：登录的账号，缺省值为langonggong@163.com
+    ...    password：登录的密码，缺省值为0123456789，加密后的值为781e5e245d69b566979b86e28d23f2c7
+    ...    params：post的参数，为键值对，如(email,langonggong@163.com,firstName,Lanu,lastName,Test2,phoneNumber,0123456789)，需要占用8个输入框
+    ...
+    ...    示例
+    ...    post_json	profile/update/user	http://test.chime.me	langonggong@163.com	781e5e245d69b566979b86e28d23f2c7	email	langonggong@163.com	firstName	Lanu	lastName	Test1 \ \ phoneNumber	0123456789
+    ${dict}    Create Dictionary    Content-Type=application/x-www-form-urlencoded
+    Create Session    api    ${domain}    ${dict}    #创建session
+    ${addr}    Get Request    api    login?account=${account}&keep=true&password=${password}    #发送get请求，注意，密码为加密后的值，不是明文，可以在浏览器使用明文登录后F12->network查看发送的请求中的参数，查看密码这一项，有加密后的值
+    Should Be Equal As Strings    ${addr.status_code}    200    #判断返回的状态码是否为200
+    ${data}    list2dictionary    @{params}
+    ${addr}    Post Request    api    ${url}    data=${data}
+    Log    +++++++++${addr.content}
+    ${responsedata}    To Json    ${addr.content}    #将返回的内容转换为json格式
+    ${status}    Get From Dictionary    ${responsedata}    status    #根据键值对获取status对应的key
+    ${code}    Get From Dictionary    ${status}    code
+    Should Be Equal As Strings    ${code}    0    #code为0表示成功
+
+get_json
+    [Arguments]    ${url}    ${Domain}=http://test.chime.me    ${username}=langonggong@163.com    ${password}=781e5e245d69b566979b86e28d23f2c7
+    [Documentation]    发送get请求，判断是否能返回正确的json字段
+    ...
+    ...    Domain:域名，缺省值为http://test.chime.me
+    ...    username:登录的用户名，缺省值为langonggong@163.com
+    ...    psassword:登录密码,缺省值为781e5e245d69b566979b86e28d23f2c7
+    ...    url:访问的链接，如sitebuilt/getSiteInfo?siteId=3
+    ...
+    ...    登陆之后才能发送请求链接
+    ...    根据返回的json字段，获取status的key中包含的code值，判断为0则该请求有效
+    ...
+    ...    示例
+    ...    get_json	sitebuilt/getSiteInfo?siteId=3
+    Create Session    api    ${Domain}    #创建session
+    ${addr}    Get Request    api    login?account=${username}&keep=true&password=${password}    #发送get请求，注意，密码为加密后的值，不是明文，可以在浏览器使用明文登录后F12->network查看发送的请求中的参数，查看密码这一项，有加密后的值
+    Should Be Equal As Strings    ${addr.status_code}    200    #判断返回的状态码是否为200
+    ${addr}    Get Request    api    ${url}
+    Should Be Equal As Strings    ${addr.status_code}    200    #判断response的状态码是否为200
+    Log    ${addr.content}    #查看内容
+    ${responsedata}    To Json    ${addr.content}    #将返回的内容转换为json格式
+    ${status}    Get From Dictionary    ${responsedata}    status    #根据键值对获取status对应的key
+    ${code}    Get From Dictionary    ${status}    code
+    Should Be Equal As Strings    ${code}    0    #code为0表示成功
+
+login_browser
+    [Arguments]    ${url}=http://test.chime.me    ${username}=langonggong@163.com    ${password}=0123456789    ${browser}=ff
+    [Documentation]    使用指定的用户名和密码登录url对应的网站,默认使用firefox浏览器
+    ...
+    ...    url：缺省值为http://test.chime.me
+    ...    username:用户名，缺省值为langongong@163.com
+    ...    password:密码，缺省值为0123456789
+    ...    browser:浏览器,缺省值为ff
+    ...
+    ...    示例
+    ...    login_browser	http://test.chime.me	langonggong@163.com	0123456789	chrome
+    #打开浏览器，使用指定的url和用户名，密码，模拟人工登录
+    Open Browser    ${url}    ${browser}    #默认打开火狐浏览器
+    Execute Javascript    $(".sign-in").click()    #呼出登录的弹窗
+    Execute Javascript    $("input[name=account]").val("${username}")    #输入框输入用户名
+    Execute Javascript    $("input[name=password]").val("${password}")    #输入框输入密码
+    Execute Javascript    $("#confirm-log").click()    #点击id为该值的按钮
+
+list2dictionary
+    [Arguments]    @{list}
+    [Documentation]    将list转换为键值对
+    ...
+    ...    参数
+    ...    list：集合
+    ...
+    ...    返回值
+    ...    dir：键值对
+    ...
+    ...
+    ...    示例
+    ...    @{list}	Create List	a	1	b	2
+    ...    ${dir}	list2dictionary	@{list}	\	\
+    ${length}=    Get Length    ${list}
+    ${dir}    Create Dictionary
+    : FOR    ${index}    IN RANGE    0    ${length}    2
+    \    Log    ${index}
+    \    Set To Dictionary    ${dir}    ${list[${index}]}=${list[${index}+1]}
+    [Return]    ${dir}
+
+post_jsp
+    [Arguments]    ${url}    ${domain}=http://test.chime.me    ${account}=langonggong@163.com    ${password}=781e5e245d69b566979b86e28d23f2c7    @{params}
+    [Documentation]    发送post请求，先在domain下用账号密码登录，再对url使用params参数发送post请求
+    ...
+    ...    url：发送post请求的链接
+    ...    domain：登录的域名，缺省值为http://test.chime.me
+    ...    account：登录的账号，缺省值为langonggong@163.com
+    ...    password：登录的密码，缺省值为0123456789，加密后的值为781e5e245d69b566979b86e28d23f2c7
+    ...    params：post的参数，为键值对，如(email,langonggong@163.com,firstName,Lanu,lastName,Test2,phoneNumber,0123456789)，需要占用8个输入框
+    ...
+    ...    示例
+    ...    post_json	profile/update/user	http://test.chime.me	langonggong@163.com	781e5e245d69b566979b86e28d23f2c7	email	langonggong@163.com	firstName	Lanu	lastName	Test1 \ \ phoneNumber	0123456789
+    ${dict}    Create Dictionary    Content-Type=application/x-www-form-urlencoded
+    Create Session    api    ${domain}    ${dict}    #创建session
+    ${addr}    Get Request    api    login?account=${account}&keep=true&password=${password}    #发送get请求，注意，密码为加密后的值，不是明文，可以在浏览器使用明文登录后F12->network查看发送的请求中的参数，查看密码这一项，有加密后的值
+    Should Be Equal As Strings    ${addr.status_code}    200    #判断返回的状态码是否为200
+    ${data}    list2dictionary    @{params}
+    ${addr}    Post Request    api    ${url}    data=${data}
+    Log    +++++++++${addr.content}
+    Should Be Equal As Strings    ${addr.status_code}    200    #判断response的状态码是否为200
